@@ -13,4 +13,5 @@ Instantly reorganize your created levels based on:
 
 ### Dependencies
 * **Node IDs** version >=1.20.0 is required.
+---
 *Developed by dosetap*
