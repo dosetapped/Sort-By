@@ -4,42 +4,29 @@
 
 using namespace geode::prelude;
 
-// ==========================================
-// 1. THE CORE SORTING ENGINE
-// ==========================================
-// We make this a standalone function so it never argues with Geode classes
 void performSort(LevelBrowserLayer* layer, std::function<bool(GJGameLevel*, GJGameLevel*)> compareFunc) {
     auto llm = LocalLevelManager::sharedState();
     auto levels = llm->m_localLevels;
 
     if (!levels) return;
 
-    // Convert GD array to C++ vector for sorting
     std::vector<GJGameLevel*> levelVec;
     for (int i = 0; i < levels->count(); ++i) {
         levelVec.push_back(static_cast<GJGameLevel*>(levels->objectAtIndex(i)));
     }
 
-    // Sort it
     std::sort(levelVec.begin(), levelVec.end(), compareFunc);
 
-    // Repopulate the GD array
     levels->removeAllObjects();
     for (auto level : levelVec) {
         levels->addObject(level);
     }
 
-    // Reload the layer to show the new order
     layer->loadPage(layer->m_searchObject);
 }
 
-
-// ==========================================
-// 2. THE LEVEL BROWSER HOOK
-// ==========================================
 class $modify(MyLevelSortingLayer, LevelBrowserLayer) {
     
-    // --- Sorting Rules ---
     void onSortAlphabetical(CCObject* sender) {
         performSort(this, [](GJGameLevel* a, GJGameLevel* b) {
             std::string nameA = a->m_levelName;
@@ -53,14 +40,19 @@ class $modify(MyLevelSortingLayer, LevelBrowserLayer) {
 
     void onSortLength(CCObject* sender) {
         performSort(this, [](GJGameLevel* a, GJGameLevel* b) {
-            return a->m_levelLength < b->m_levelLength;
+            return a->m_levelLength > b->m_levelLength; 
         });
         this->closeAlert(sender);
     }
 
-    // --- Helper to close the popup after clicking a button ---
+    void onSortTimeSpent(CCObject* sender) {
+        performSort(this, [](GJGameLevel* a, GJGameLevel* b) {
+            return a->m_workingTime > b->m_workingTime; 
+        });
+        this->closeAlert(sender);
+    }
+
     void closeAlert(CCObject* sender) {
-        // Climb up the UI tree to find the popup window and close it
         CCNode* current = static_cast<CCNode*>(sender);
         while (current && !typeinfo_cast<FLAlertLayer*>(current)) {
             current = current->getParent();
@@ -70,37 +62,30 @@ class $modify(MyLevelSortingLayer, LevelBrowserLayer) {
         }
     }
 
-    // --- Building the UI ---
     void onSortButtonClicked(CCObject* sender) {
-        // Create a vanilla Geometry Dash popup with a blank description
-        auto alert = FLAlertLayer::create("Sort Levels", " ", "Cancel");
-        
-        // Create our menu
-        auto menu = CCMenu::create();
-        menu->setLayout(ColumnLayout::create()->setGap(10.f)); 
+        auto alert = FLAlertLayer::create("Sort Levels", "\n\n\n\n\n\n\n\n", "Cancel");
         
         auto alphaBtn = CCMenuItemSpriteExtra::create(
             ButtonSprite::create("Alphabetical"),
             this, menu_selector(MyLevelSortingLayer::onSortAlphabetical)
         );
-        menu->addChild(alphaBtn);
-
         auto lengthBtn = CCMenuItemSpriteExtra::create(
             ButtonSprite::create("Length"),
             this, menu_selector(MyLevelSortingLayer::onSortLength)
         );
-        menu->addChild(lengthBtn);
+        auto timeBtn = CCMenuItemSpriteExtra::create(
+            ButtonSprite::create("Time Spent"),
+            this, menu_selector(MyLevelSortingLayer::onSortTimeSpent)
+        );
 
-        menu->updateLayout();
-        
-        // Position our menu in the center of the popup
-        menu->setPosition(alert->m_mainLayer->getContentSize() / 2);
-        
-        // Shift it down slightly so it doesn't overlap the "Sort Levels" title
-        menu->setPositionY(menu->getPositionY() - 15.f);
+        alphaBtn->setPosition({0, 160.f});
+        lengthBtn->setPosition({0, 105.f});
+        timeBtn->setPosition({0, 50.f});
 
-        // Inject our menu into the popup and show it!
-        alert->m_mainLayer->addChild(menu);
+        alert->m_buttonMenu->addChild(alphaBtn);
+        alert->m_buttonMenu->addChild(lengthBtn);
+        alert->m_buttonMenu->addChild(timeBtn);
+        
         alert->show();
     }
 
